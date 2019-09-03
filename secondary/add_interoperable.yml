@@ -1,0 +1,98 @@
+---
+- hosts: "localhost"                        # Note #2 in the Description section
+  vars_files:
+  - vars.yml
+
+  tasks:
+  - name: "login"                           # You have to login to the management
+                                            # server before running any commands
+    check_point_mgmt:
+      command: login
+      parameters:
+        username: "{{mgmt_user}}"           # Variables set in /etc/ansible/hosts, to avoid needing
+        password: "{{mgmt_password}}"       # to type your login details in every playbook.
+        management: "{{mgmt_server}}"
+      fingerprint: "{{mgmt_fingerprint}}"
+    register: login_response                # Register the output from the login
+                                            # command so we can use it later to run commands.
+                                            #
+
+  - name: "add VPN Subnet"
+    check_point_mgmt:
+      command: add-network
+      parameters:
+        name: "{{ vpn_subnet_name }}"
+        subnet: "{{ vpn_subnet }}"
+        mask-length: " {{ vpn_subnet_length }}"
+        color: "blue"
+      session-data: "{{login_response}}"
+    register: vpnnetwork
+
+  - name: "add interoperable device"
+    check_point_mgmt:
+      command: add-generic-object                     # Name of the command
+      parameters:                           #  The parameters for it, in dictionary form
+        name: "{{ interoperable_name }}"
+        create: "com.checkpoint.objects.classes.dummy.CpmiGatewayPlain"
+        dataSourceSettings:
+        encdomain: "MANUAL"
+        ipaddr: "{{ interoperable_ip }}"
+        #  manualEncdomain: "ae9d5ebd-83b2-42e8-b8a2-21d67a56826e"
+        manualEncdomain: "{{ vpnnetwork.response.uid }}" 
+        nat:
+        osInfo:
+          osName: Gaia
+        snmp:
+        thirdPartyEncryption: "True"
+        vpn:
+          create: "com.checkpoint.objects.classes.dummy.CpmiVpn"
+          owned-object:
+            ike:
+              create: "com.checkpoint.objects.classes.dummy.CpmiIke"
+            isakmpUniversalSupport: "True"
+            sslNe:
+              create: "com.checkpoint.objects.classes.dummy.CpmiSslNetworkExtender"
+              owned-object:
+                gwCertificate: "defaultCert"
+                sslEnable: 'False'
+            vpnClientsSettingsForGateway:
+              create: "com.checkpoint.objects.classes.dummy.CpmiVpnClientsSettingsForGateway"
+              owned-object:
+                endpointVpnClientSettings:
+                  create: "com.checkpoint.objects.classes.dummy.CpmiEndpointVpnClientSettingsForGateway"
+                  owned-object:
+                    endpointVpnEnable: "True"
+
+      session-data: "{{ login_response }}"  # The session data we received from
+    register: interoperabledevice 
+
+  - name: "publish"                         # Publishing is important if you want
+                                            # your changes to be saved.
+    check_point_mgmt:                       # This will actually 'discard' when
+                                            # check mode is enabled (ansible-playbook -C)
+                                            # unless you add 'always_run: yes' to the task.
+      command: publish
+      session-data: "{{login_response}}"
+
+  - name: "set interoperable device"
+    check_point_mgmt:
+      command: set-generic-object                     # Name of the command
+      parameters:                           #  The parameters for it, in dictionary form
+        uid: "{{ interoperabledevice.response.uid }}"
+        color: "RED"
+      session-data: "{{login_response}}"
+
+  - name: "publish"                         # Publishing is important if you want
+                                            # your changes to be saved.
+    check_point_mgmt:                       # This will actually 'discard' when
+                                            # check mode is enabled (ansible-playbook -C)
+                                            # unless you add 'always_run: yes' to the task.
+      command: publish
+      session-data: "{{login_response}}"
+
+
+  - name: "logout"                         
+    check_point_mgmt:                       
+      command: logout 
+      session-data: "{{login_response}}"
+

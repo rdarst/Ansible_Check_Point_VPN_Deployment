@@ -1,0 +1,55 @@
+---
+- hosts: "localhost"                        # Note #2 in the Description section
+  vars_files:
+  - vars.yml
+
+  tasks:
+  - name: "login"                           # You have to login to the management
+                                            # server before running any commands
+    check_point_mgmt:
+      command: login
+      parameters:
+        username: "{{mgmt_user}}"           # Variables set in /etc/ansible/hosts, to avoid needing
+        password: "{{mgmt_password}}"       # to type your login details in every playbook.
+        management: "{{mgmt_server}}"
+      fingerprint: "{{mgmt_fingerprint}}"
+    register: login_response                # Register the output from the login
+                                            # command so we can use it later to run commands.
+                                            #
+
+  - name: "add VPN Community"
+    check_point_mgmt:
+      command: add-vpn-community-star
+      parameters:
+        name: "{{ community_name }}"
+        center-gateways: "{{ local_gateway }}"
+        satellite-gateways: " {{ interoperable_name }}"
+        color: "blue"
+        encryption-method: "ikev2 only"
+        use-shared-secret: "true"
+        shared-secrets:
+          - external-gateway: "{{ interoperable_name }}"
+            shared-secret: "vpn123456789!vpn123456789!"
+        ike-phase-1:
+          data-integrity: "sha256"
+          encryption-algorithm: "aes-256"
+          diffie-hellman-group: "group 14"
+        ike-phase-2:
+          data-integrity: "sha256"
+          encryption-algorithm: "aes-256" 
+      session-data: "{{login_response}}"
+    register: vpncommunity
+
+  - name: "publish"                         # Publishing is important if you want
+                                            # your changes to be saved.
+    check_point_mgmt:                       # This will actually 'discard' when
+                                            # check mode is enabled (ansible-playbook -C)
+                                            # unless you add 'always_run: yes' to the task.
+      command: publish
+      session-data: "{{login_response}}"
+
+  - name: "logout"                         
+    check_point_mgmt:                       
+      command: logout 
+      session-data: "{{login_response}}"
+

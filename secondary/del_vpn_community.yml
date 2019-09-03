@@ -1,0 +1,40 @@
+---
+- hosts: "localhost"                        # Note #2 in the Description section
+  vars_files:
+  - vars.yml
+
+  tasks:
+  - name: "login"                           # You have to login to the management
+                                            # server before running any commands
+    check_point_mgmt:
+      command: login
+      parameters:
+        username: "{{mgmt_user}}"           # Variables set in /etc/ansible/hosts, to avoid needing
+        password: "{{mgmt_password}}"       # to type your login details in every playbook.
+        management: "{{mgmt_server}}"
+      fingerprint: "{{mgmt_fingerprint}}"
+    register: login_response                # Register the output from the login
+                                            # command so we can use it later to run commands.
+                                            #
+
+  - name: "Delete VPN Community"
+    check_point_mgmt:
+      command: delete-vpn-community-star
+      parameters:
+        name: "{{ community_name }}"
+      session-data: "{{login_response}}"
+    register: vpncommunity
+
+  - name: "publish"                         # Publishing is important if you want
+                                            # your changes to be saved.
+    check_point_mgmt:                       # This will actually 'discard' when
+                                            # check mode is enabled (ansible-playbook -C)
+                                            # unless you add 'always_run: yes' to the task.
+      command: publish
+      session-data: "{{login_response}}"
+
+  - name: "logout"                         
+    check_point_mgmt:                       
+      command: logout 
+      session-data: "{{login_response}}"
+
