@@ -1,0 +1,36 @@
+---
+- hosts: "localhost"                        # Note #2 in the Description section
+  vars_files:
+  - vars.yml
+
+  tasks:
+  - name: "login"                           # You have to login to the management
+                                            # server before running any commands
+    check_point_mgmt:
+      command: login
+      parameters:
+        username: "{{mgmt_user}}"           # Variables set in /etc/ansible/hosts, to avoid needing
+        password: "{{mgmt_password}}"       # to type your login details in every playbook.
+        management: "{{mgmt_server}}"
+      fingerprint: "{{mgmt_fingerprint}}"
+    register: login_response                # Register the output from the login
+                                            # command so we can use it later to run commands.
+                                            #
+
+
+  - name: "Push Access Policy"
+    check_point_mgmt:
+      command: install-policy
+      parameters:
+        policy-package: "{{ policy_package }}"
+        access: "true"
+        threat-prevention: "false"
+        targets:
+          -  "{{ local_gateway }}"
+      session-data: "{{login_response}}"
+
+  - name: "logout"                         
+    check_point_mgmt:                       
+      command: logout 
+      session-data: "{{login_response}}"
+

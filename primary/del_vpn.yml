@@ -1,0 +1,9 @@
+---
+
+- name: CheckMates VPN Demo Deployment
+  gather_facts: no
+  hosts: localhost
+- import_playbook: del_vpn_community.yml 
+- import_playbook: del_interoperable.yml 
+- import_playbook: install_policy.yml 
+

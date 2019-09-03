@@ -1,0 +1,6 @@
+---
+mgmt_user: api_user
+mgmt_password: vpn123
+mgmt_server: 10.2.0.158
+mgmt_fingerprint: 58:10:D2:3C:F9:7C:38:15:90:F1:AE:4C:C8:BD:46:0F:09:D1:AD:C6 
+
