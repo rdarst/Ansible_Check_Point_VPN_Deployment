@@ -6,3 +6,10 @@
 Adjust the settings in the script file to match what you would like to build.
 
 Adjust the build_primary_vpn and destroy_primary_vpn scripts to match the variables you would like to be sent to the management server.
+  - vpn subnet name
+  - vpn subnet network
+  - vpn subnet mask length
+  - interoperable device name
+  - interoperable device ip
+  - policy package to push
+
